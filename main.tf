@@ -53,6 +53,9 @@ resource "aws_internet_gateway" "main" {
   tags = {
     Name = "ec2 ecs cluster-igw"
   }
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 resource "aws_eip" "main" {
@@ -60,6 +63,10 @@ resource "aws_eip" "main" {
   depends_on = [aws_internet_gateway.main]
   tags = {
     Name = "${local.azs_names[count.index]}-eip"
+  }
+  lifecycle {
+    prevent_destroy = false
+
   }
 }
 
@@ -78,6 +85,9 @@ resource "aws_route_table" "public" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
+  }
+  lifecycle {
+    prevent_destroy = false
   }
 }
 
@@ -193,7 +203,7 @@ resource "aws_launch_template" "ecs_ec2" {
 resource "aws_autoscaling_group" "ecs" {
   name_prefix               = "ecs-asg-ecs-ec2-cluster-"
   vpc_zone_identifier       = aws_subnet.public[*].id
-  min_size                  = 2
+  min_size                  = 1
   max_size                  = 6
   health_check_grace_period = 0
   health_check_type         = "EC2"
@@ -360,7 +370,7 @@ resource "aws_ecs_service" "app" {
   name            = "app"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = 2
+  desired_count   = 1
   depends_on      = [aws_lb_target_group.app]
   load_balancer {
     target_group_arn = aws_lb_target_group.app.arn
@@ -455,30 +465,14 @@ output "alb_url" {
   value = aws_lb.main.dns_name
 }
 
-
-# # --- ECS Service ---
-
-# resource "aws_ecs_service" "app_service" {
-#   name            = "app"
-#   depends_on      = [aws_lb_target_group.app]
-#   task_definition = aws_ecs_task_definition.app.arn
-
-#   load_balancer {
-#     target_group_arn = aws_lb_target_group.app.arn
-#     container_name   = "app"
-#     container_port   = 80
-#   }
-# }
-
-
 # --- ECS Service Auto Scaling ---
 
 resource "aws_appautoscaling_target" "ecs_target" {
   service_namespace  = "ecs"
   scalable_dimension = "ecs:service:DesiredCount"
   resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
-  min_capacity       = 2
-  max_capacity       = 5
+  min_capacity       = 1
+  max_capacity       = 6
 }
 
 resource "aws_appautoscaling_policy" "ecs_target_cpu" {
