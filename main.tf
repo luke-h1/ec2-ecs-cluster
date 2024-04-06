@@ -452,7 +452,7 @@ output "alb_url" {
 
 # --- ECS Service ---
 
-resource "aws_ecs_service" "app" {
+resource "aws_ecs_service" "app_service" {
   name       = "app"
   depends_on = [aws_lb_target_group.app]
 
@@ -469,7 +469,7 @@ resource "aws_ecs_service" "app" {
 resource "aws_appautoscaling_target" "ecs_target" {
   service_namespace  = "ecs"
   scalable_dimension = "ecs:service:DesiredCount"
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app_service.name}"
   min_capacity       = 2
   max_capacity       = 5
 }
