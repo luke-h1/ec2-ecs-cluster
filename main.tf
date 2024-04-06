@@ -222,7 +222,7 @@ resource "aws_autoscaling_group" "ecs" {
 # EC2 CAPACITY PROVIDER
 ###################################################
 resource "aws_ecs_capacity_provider" "main" {
-  name = "ecs-capacity-provider-ec2"
+  name = "capacity-provider-"
 
   auto_scaling_group_provider {
     auto_scaling_group_arn         = aws_autoscaling_group.ecs.arn
@@ -327,7 +327,7 @@ resource "aws_ecs_task_definition" "app" {
     logConfiguration = {
       logDriver = "awslogs",
       options = {
-        "awslogs-region"        = "us-east-1",
+        "awslogs-region"        = "eu-west-2",
         "awslogs-group"         = aws_cloudwatch_log_group.ecs.name,
         "awslogs-stream-prefix" = "app"
       }
@@ -361,6 +361,12 @@ resource "aws_ecs_service" "app" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 2
+  depends_on      = [aws_lb_target_group.app]
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app.arn
+    container_name   = "app"
+    container_port   = 80
+  }
 
   network_configuration {
     security_groups = [aws_security_group.ecs_task.id]
@@ -450,18 +456,19 @@ output "alb_url" {
 }
 
 
-# --- ECS Service ---
+# # --- ECS Service ---
 
-resource "aws_ecs_service" "app_service" {
-  name       = "app"
-  depends_on = [aws_lb_target_group.app]
+# resource "aws_ecs_service" "app_service" {
+#   name            = "app"
+#   depends_on      = [aws_lb_target_group.app]
+#   task_definition = aws_ecs_task_definition.app.arn
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.app.arn
-    container_name   = "app"
-    container_port   = 80
-  }
-}
+#   load_balancer {
+#     target_group_arn = aws_lb_target_group.app.arn
+#     container_name   = "app"
+#     container_port   = 80
+#   }
+# }
 
 
 # --- ECS Service Auto Scaling ---
@@ -469,7 +476,7 @@ resource "aws_ecs_service" "app_service" {
 resource "aws_appautoscaling_target" "ecs_target" {
   service_namespace  = "ecs"
   scalable_dimension = "ecs:service:DesiredCount"
-  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app_service.name}"
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.app.name}"
   min_capacity       = 2
   max_capacity       = 5
 }
